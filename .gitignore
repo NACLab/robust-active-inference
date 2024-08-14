@@ -1,0 +1,5 @@
+/scripts/logs
+/logs*
+__pycache__
+.pytest_cache
+!/logs_expert
