@@ -1,4 +1,7 @@
-![Experiment Results of R-AIF Experiment](docs/raif_experiment_results.gif)
+<p align="center">
+  <img src="docs/raif_experiment_results.gif" alt="Experiment Results of R-AIF Experiment"
+    width="97%" style="border-radius: 5px;"/>
+</p>
 
 # R-AIF: Solving Sparse-Reward Robotic Tasks from Pixels with Active Inference and World Models
 
