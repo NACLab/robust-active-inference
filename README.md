@@ -9,6 +9,7 @@ There is relatively less work that builds AIF models in the context of partially
 
 The implementation documentation can be found in [`docs/ImplementationDetailsDocumentation.pdf`](docs/ImplementationDetailsDocumentation.pdf), which is very helpful for understanding the logic of (and mathematical framework behind) the research work and the code base.
 
+Our work is submitted to ICRA 2025, here is the [ArXiv version](https://arxiv.org/abs/2409.14216)
 
 ## Requirements
 
