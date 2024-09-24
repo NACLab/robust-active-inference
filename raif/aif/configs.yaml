@@ -1,0 +1,232 @@
+defaults:
+  seed: 0
+  logroot: logs
+  expname: name
+  logdir: ""
+  task: dummy_disc
+  replay: uniform
+  replay_size: 5e5
+  replay_online: False
+  eval_dir: ''
+  filter: '.*'
+  rc: False
+
+  jax:
+    platform: gpu
+    jit: True
+    precision: float16
+    prealloc: False
+    debug_nans: False
+    logical_cpus: 0
+    debug: False
+    policy_devices: [0]
+    train_devices: [0]
+    metrics_every: 10
+
+  run:
+    script: train # train, train_save, train_eval, train_holdout, eval_only, parallel
+    steps: 1000000
+    log_every: 300 # log every 300 seconds
+    save_every: 900
+    eval_every: 1e6
+    eval_initial: True
+    eval_eps: 1
+    eval_samples: 1
+    train_ratio: 64.0
+    train_fill: 0
+    eval_fill: 0
+    log_zeros: False
+    log_keys_video: [image]
+    log_keys_sum: '^$'
+    log_keys_mean: '(log_entropy)'
+    log_keys_max: '^$'
+    from_checkpoint: ''
+    sync_every: 10
+    actor_addr: 'tcp://127.0.0.1:5551'
+    # actor_addr: 'ipc:///tmp/5551'
+    actor_batch: 32
+
+  # Environmental setup
+  envs: {amount: 4, parallel: process, reset: True, restart: True, discretize: 0, checks: False}
+  wrapper: {length: 0, repeat: 2, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: 'state', r_reward_offset: 0.0}
+  env:
+    atari: {size: [64, 64], repeat: 4, sticky: True, gray: False, actions: all, lives: unused, noops: 0, resize: opencv}
+    dmlab: {size: [64, 64], repeat: 4, episodic: True}
+    minecraft: {size: [64, 64], break_speed: 100.0}
+    loconav: {size: [64, 64], repeat: 2, camera: -1}
+    dm: {size: [64, 64], camera: -1}
+    gymrobotics: {image_size: [64, 64]}
+    metaworld: {image_size: [64, 64], reward_shaping: False}
+    robosuite: {image_size: [64, 64], reward_shaping: False, generate_images: True}
+
+  # Training
+  batch_size: 16
+  batch_length: 64
+  data_loaders: 8
+
+  # World Model
+  grad_heads: [decoder, reward, cont]
+  rssm: {deter: 4096, units: 1024, stoch: 32, classes: 32, act: silu, norm: layer, initial: learned, unimix: 0.01, unroll: False, action_clip: 1.0, winit: normal, fan: avg}
+  encoder: {mlp_keys: '.*', cnn_keys: '.*', act: silu, norm: layer, mlp_layers: 5, mlp_units: 1024, cnn: resnet, cnn_depth: 96, cnn_blocks: 0, resize: stride, winit: normal, fan: avg, symlog_inputs: True, minres: 4}
+  decoder: {mlp_keys: '.*', cnn_keys: '.*', act: silu, norm: layer, mlp_layers: 5, mlp_units: 1024, cnn: resnet, cnn_depth: 96, cnn_blocks: 0, image_dist: mse, vector_dist: symlog_mse, inputs: [deter, stoch], resize: stride, winit: normal, fan: avg, outscale: 1.0, minres: 4, cnn_sigmoid: False}
+  reward_head: {layers: 5, units: 1024, act: silu, norm: layer, dist: symlog_disc, outscale: 0.0, outnorm: False, inputs: [deter, stoch], winit: normal, fan: avg, bins: 255}
+  cont_head: {layers: 5, units: 1024, act: silu, norm: layer, dist: binary, outscale: 1.0, outnorm: False, inputs: [deter, stoch], winit: normal, fan: avg}
+  dyn_loss: {impl: kl, free: 1.0}
+  rep_loss: {impl: kl, free: 1.0}
+  model_opt: {opt: adam, lr: 1e-4, eps: 1e-8, clip: 1000.0, wd: 0.0, warmup: 0, lateclip: 0.0}
+
+  # Training setup
+  loss_scales: {image: 1.0, vector: 1.0, reward: 1.0, cont: 1.0, dyn: 0.5, rep: 0.1, actor: 1.0, critic: 1.0, slowreg: 1.0, contrast: 1.0, actor_refresh: 0.5}
+
+  # Actor Critic
+  actor: {layers: 5, units: 1024, act: silu, norm: layer, minstd: 0.1, maxstd: 1.0, outscale: 1.0, outnorm: False, unimix: 0.01, inputs: [deter, stoch], winit: normal, fan: avg, symlog_inputs: False}
+  critic: {layers: 5, units: 1024, act: silu, norm: layer, dist: symlog_disc, outscale: 0.0, outnorm: False, inputs: [deter, stoch], winit: normal, fan: avg, bins: 255, symlog_inputs: False}
+  actor_opt: {opt: adam, lr: 3e-5, eps: 1e-5, clip: 100.0, wd: 0.0, warmup: 0, lateclip: 0.0}
+  critic_opt: {opt: adam, lr: 3e-5, eps: 1e-5, clip: 100.0, wd: 0.0, warmup: 0, lateclip: 0.0}
+  actor_dist_disc: onehot
+  actor_dist_cont: normal
+  actor_grad_disc: reinforce
+  actor_grad_cont: backprop
+  imag_horizon: 8
+  imag_unroll: False
+  horizon: 333
+  return_lambda: 0.95
+  critic_slowreg: logprob
+  slow_critic_update: 1
+  slow_critic_fraction: 0.02
+  retnorm: {impl: perc_ema, decay: 0.99, max: 1.0, perclo: 5.0, perchi: 95.0}
+  actent: 3e-4
+  wment: 3e-4
+
+  # Information Gain (IG)
+  ig_opt: {opt: adam, lr: 1e-4, eps: 1e-5, clip: 100.0, wd: 0.0, warmup: 0}
+  ig_head: {layers: 3, units: 256, act: silu, norm: layer, dist: normal, outscale: 1.0, inputs: [deter, stoch, action], winit: normal, fan: avg}
+  ig_target: [stoch]
+  ig_models: 4
+  ig_head_random_no_learning: 0.0
+
+  # planner/imaginging-actor-critic/crspp training
+  self_imitation: {disc: 0.4, thr: 0.001, fail: 0.3}
+
+  # When computing score, control how much each item contribute to the negative expected free energy
+  G_scales: {rew: 1.0, crspp: 1.0, ig: 1.0}
+
+gym_mtc:
+  task: gym_mtc
+  wrapper: {length: 100, repeat: 2, reset: True, discretize: 0, checks: False, r_reward_offset: 1.1}
+  encoder: {mlp_keys: '^$', cnn_keys: 'image'}
+  decoder: {mlp_keys: '^$', cnn_keys: 'image'}
+  run.steps: 1000000 # we can see good plots in 1M steps
+  batch_size: 16
+  batch_length: 64
+  imag_horizon: 8
+
+metaworld:
+  task: metaworld_drawer-close-v2 # button-press-v2, drawer-close-v2, window-open-v2, handle-pull-v2, door-close-v2, door-open-v2
+  wrapper: {length: 160, repeat: 3, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: 'state|near_object|grasp_success|obj_to_target', stateconcat_target: 'combined_state', r_reward_offset: 3.1}
+  encoder: {mlp_keys: '^$', cnn_keys: 'image_0|image_1|image_2'}
+  decoder: {mlp_keys: '^$', cnn_keys: 'image_0|image_1|image_2'}
+  run.steps: 3000000 # we can see good plots in 3M steps
+  run.log_keys_video: [image_0, image_1, image_2]
+  batch_size: 6
+  batch_length: 20
+  imag_horizon: 4
+
+robosuite:
+  task: robosuite_Door # Door, Lift
+  wrapper: {length: 500, repeat: 1, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: 'robot0_proprio-state|object-state', stateconcat_target: 'combined_state', r_reward_offset: 1.0} # the reason why we put combined state here is we want it to be consistent with the collected expert data => no error when batching data
+  run.steps: 5000000
+  encoder: {mlp_keys: '^$', cnn_keys: '.*image'}
+  decoder: {mlp_keys: '^$', cnn_keys: '.*image'}
+  batch_size: 6
+  batch_length: 20
+  imag_horizon: 4
+  run.log_keys_video: [frontview_image, agentview_image, sideview_image, birdview_image]
+
+
+### MODEL CONFIGS
+
+tiny:
+  .*\.cnn_depth: 16
+  .*\.layers: 2
+  .*\.units: 32
+  .*\.mlp_layers: 2
+  .*\.mlp_units: 64
+  .*\.minres: 4
+  .*\.cnn_blocks: 0 # resblocks is crucial in learning prior preference
+  actor: {layers: 3, units: 256}
+  rssm: {deter: 128, stoch: 32, classes: 32}
+
+small:
+  .*\.cnn_depth: 32
+  .*\.layers: 3
+  .*\.units: 196
+  .*\.mlp_layers: 3
+  .*\.mlp_units: 196
+  .*\.minres: 4
+  .*\.cnn_blocks: 0 # resblocks is crucial in learning prior preference
+  actor: {layers: 4, units: 256}
+  rssm: {deter: 512, stoch: 32, classes: 32}
+
+medium:
+  .*\.cnn_depth: 40
+  .*\.layers: 3
+  .*\.units: 256
+  .*\.mlp_layers: 4
+  .*\.mlp_units: 256
+  .*\.minres: 4
+  .*\.cnn_blocks: 0 # resblocks is crucial in learning prior preference
+  actor: {layers: 4, units: 512}
+  rssm: {deter: 512, stoch: 36, classes: 36}
+
+large:
+  .*\.cnn_depth: 48
+  .*\.layers: 3
+  .*\.units: 512
+  .*\.mlp_layers: 3
+  .*\.mlp_units: 512
+  .*\.minres: 4
+  .*\.cnn_blocks: 0
+  actor: {layers: 4, units: 512}
+  rssm: {deter: 2048, stoch: 64, classes: 32}
+
+
+multicpu:
+
+  jax:
+    logical_cpus: 8
+    policy_devices: [0, 1]
+    train_devices: [2, 3, 4, 5, 6, 7]
+  run:
+    actor_batch: 4
+  envs:
+    amount: 8
+  batch_size: 12
+  batch_length: 10
+
+debug:
+
+  jax: {jit: True, prealloc: False, debug: True, platform: cpu}
+  envs: {restart: False, amount: 3}
+  wrapper: {length: 100, checks: False} # checks: True
+  run:
+    eval_every: 1000
+    log_every: 5
+    save_every: 10
+    train_ratio: 32
+    actor_batch: 2
+  batch_size: 8
+  batch_length: 12
+  replay_size: 1e5
+  encoder.cnn_depth: 8
+  decoder.cnn_depth: 8
+  rssm: {deter: 32, units: 16, stoch: 4, classes: 4}
+  .*unroll: False
+  .*\.layers: 2
+  .*\.units: 16
+  .*\.wd$: 0.0
+
+
+# NO LOG VIDEO
+no_video:
+  run.log_keys_video: [none]

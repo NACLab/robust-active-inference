@@ -1,0 +1,100 @@
+## This is used to infer the expert
+
+defaults:
+  logroot: logs
+  expname: name
+  logdir: ""
+  expert_models_dir: expert_models
+  seed: 0
+  task: dummy_disc
+  replay: uniform
+  replay_size: 5e5
+  replay_online: False
+  # Training configs
+  batch_size: 32
+  batch_length: 64 ############## NOTE: Change this to be corresponding to AIF Agent
+  rc: False # specify if we are training on RIt's Research Computing Cluster, if so, we have to change several environment variables such as mujoco_gl engine
+  filter: '.*'
+
+  run:
+    script: none
+    steps: 100000
+    learning_rate: 3e-4
+    epsilon: 1e-8
+    grad_clip_norm: 100.0
+    log_every: 600
+    save_every: 300
+    train_every: 400
+    train_ratio: 500
+    train_fill: 1000
+    eval_fill: 0
+    log_zeros: False
+    log_keys_video: [image]
+    log_keys_sum: '^$'
+    log_keys_mean: '(log_entropy)'
+    log_keys_max: '^$'
+
+  # environment setup
+  envs: {amount: 4, parallel: process, reset: True, restart: True, discretize: 0, checks: False} # This breaks on local machines
+  # envs: {amount: 1, parallel: none, reset: True, restart: True, discretize: 0, checks: False}
+  wrapper: {length: 0, repeat: 2, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: 'state', r_reward_offset: 0.0} #, additional_action_spaces: [can_self_imitate]} # this is to indicate if the action was the expert action
+  env:
+    dm: {size: [64, 64], camera: -1}
+    gymrobotics: {image_size: [64, 64], generate_images: True}
+    metaworld: {image_size: [64, 64], reward_shaping: False, generate_images: True, fixed_goal: False}
+    robosuite: {image_size: [64, 64], reward_shaping: False, generate_images: True}
+
+  # Self imitation
+  # self_imitation: {disc: 0.9, thr: 0.6, dop: 0.6, fail: 0.95, imp: 0.03} ############## NOTE: Change this to be corresponding to AIF Agent
+  self_imitation: {disc: 0.4, thr: 0.001, fail: 0.3}
+
+  # expert model training setup and configuration
+  experts: # config at the suite level
+    gym: {model: PPO, obs_key: state, timesteps: 500000, input_policy: MlpPolicy, use_her: False, goal_selection_strategy: future, model_name: ppo_gym}
+    dm: {model: PPO, obs_key: state, timesteps: 500000, input_policy: MlpPolicy, use_her: False, goal_selection_strategy: future, model_name: ppo_dm}
+    gymrobotics: {model: TQC, obs_key: [observation, achieved_goal, desired_goal], timesteps: 50000, input_policy: MultiInputPolicy, use_her: true, goal_selection_strategy: future, model_name: tqc_gymrobotics} # policy_kwargs: {net_arch: [512, 512, 512], n_critics: 2}
+    metaworld: {model: PPO, obs_key: combined_state, timesteps: 500000, input_policy: MlpPolicy, use_her: False, goal_selection_strategy: future, model_name: ppo_metaworld}
+    # robosuite: {model: PPO, obs_key: combined_state, timesteps: 1000000, input_policy: MlpPolicy, use_her: False, goal_selection_strategy: future, model_name: ppo_robosuite, policy_kwargs: {net_arch: {pi: [256, 256, 256], vf: [256, 256, 256]}}}
+    # robosuite: {model: RecurrentPPO, obs_key: combined_state, timesteps: 1000000, input_policy: MlpLstmPolicy, use_her: False, goal_selection_strategy: future, model_name: rppo_robosuite, policy_kwargs: {net_arch: {pi: [256, 256, 256], vf: [256, 256, 256]}}} # shared: [256, 256]
+    robosuite: {model: SAC, obs_key: combined_state, timesteps: 5000000, input_policy: MlpPolicy, use_her: False, goal_selection_strategy: future, model_name: sac_robosuite, policy_kwargs: {net_arch: {pi: [256, 256], vf: [256, 256], qf: [256, 256]}}} # shared: [256, 256]
+
+collect:
+  run.script: collect_prior
+
+# train_mdp:
+#   run.script: train_prior
+
+# train_pomdp:
+#   run.script: train_pomdp
+
+gym_mtc:
+  task: gym_mtc
+  wrapper: {length: 100, repeat: 2, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', r_reward_offset: 1.1}
+  run.steps: 1000 # has to be at least batch size * batch length to sample from. about 10 episodes
+
+
+gymrobotics:
+  task: gymrobotics_FetchReach-v2
+  wrapper: {length: 50, repeat: 1, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', r_reward_offset: 1.1}
+  run.steps: 5000 # about 80 episodes
+
+
+metaworld:
+  task: metaworld_drawer-close-v2 # button-press-v2, drawer-close-v2, window-open-v2, handle-pull-v2, door-close-v2, door-open-v2
+  wrapper: {length: 160, repeat: 3, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: 'state|near_object|grasp_success|obj_to_target', stateconcat_target: 'combined_state', r_reward_offset: 3.1}
+  run.steps: 3300 # about 20 episodes # Not all episodes are successful
+
+robosuite:
+  task: robosuite_Door # Door, Lift
+  wrapper: {length: 500, repeat: 1, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: 'robot0_proprio-state|object-state', stateconcat_target: 'combined_state', r_reward_offset: 1.0}
+  run.steps: 20000 # about 40 episodes
+
+
+# dm_vision:
+#   task: dm_cheetah_run
+#   wrapper: {length: 500, repeat: 2, reset: True, discretize: 0, checks: False, delta: '^$'}
+
+
+no_video:
+  run.log_keys_video: [none]
+

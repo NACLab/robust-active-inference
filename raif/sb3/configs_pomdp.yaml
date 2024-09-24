@@ -1,0 +1,49 @@
+## This is used to train the expert on pomdp
+
+defaults:
+  seed: 0
+  logroot: logs
+  expname: name
+  logdir: ""
+  tboarddir: ""
+  task: dummy_disc
+  rc: False # specify if we are training on RIt's Research Computing Cluster, if so, we have to change several environment variables such as mujoco_gl engine
+
+  run:
+    steps: 100000
+
+  # environment setup
+  wrapper: {length: 0, repeat: 2, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: '^$', r_reward_offset: 0.0}
+  env:
+    dm: {size: [64, 64], camera: -1}
+    gymrobotics: {image_size: [64, 64], generate_images: True}
+    metaworld: {image_size: [64, 64], reward_shaping: False, generate_images: True}
+    robosuite: {image_size: [64, 64], reward_shaping: False, generate_images: True}
+
+  feature_dim: 128
+  agent: dummy
+
+gym_mtc:
+  task: gym_mtc
+  wrapper: {length: 100, repeat: 2, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: '^$', r_reward_offset: 1.1}
+  feature_dim: 128
+  run.steps: 1000000
+
+gymrobotics:
+  task: gymrobotics_FetchReach-v2
+  wrapper: {length: 50, repeat: 1, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: '', r_reward_offset: 1.1}
+  feature_dim: 256
+  run.steps: 7000000
+
+metaworld:
+  task: metaworld_drawer-close-v2 # button-press-v2, drawer-close-v2, window-open-v2, handle-pull-v2, door-close-v2, door-open-v2
+  wrapper: {length: 160, repeat: 3, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: '^$', r_reward_offset: 3.1}
+  feature_dim: 256
+  run.steps: 3000000
+
+robosuite:
+  task: robosuite_Door # Door, Lift
+  wrapper: {length: 500, repeat: 1, reset: True, discretize: 0, checks: False, delta: '^$', stateconcat: '^$', stateconcat_target: '^$', r_reward_offset: 1.0}
+  run.steps: 5000000
+
+
